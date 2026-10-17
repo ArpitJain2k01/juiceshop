@@ -14,3 +14,8 @@ variable "vpc_cidr" {
   type        = string
   default     = "10.20.0.0/16"
 }
+
+variable "evaluator_cidr" {
+  description = "The CIDR block for the evaluator"
+  type        = string
+}

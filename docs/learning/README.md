@@ -6,7 +6,7 @@ lab is explainable in an interview.
 | Tool | Note | Status |
 |------|------|--------|
 | K3s | `k3s.md` | pending |
-| WireGuard | `wireguard.md` | pending |
+| WireGuard | `wireguard.md` | ✅ done |
 | ModSecurity + OWASP CRS | `waf.md` | pending |
 | Wazuh | `wazuh.md` | pending |
 | Verifier / Indexer API | `verifier.md` | pending |
