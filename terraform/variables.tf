@@ -77,3 +77,14 @@ variable "wg_root_volume_size" {
   type        = number
   default     = 10
 }
+variable "wazuh_data_volume_size" {
+  description = "Size (GiB) of the dedicated Wazuh data EBS volume (persisted across reruns)"
+  type        = number
+  default     = 50
+}
+
+variable "wazuh_root_volume_size" {
+  description = "Root volume size for the Wazuh VM"
+  type        = number
+  default     = 30
+}

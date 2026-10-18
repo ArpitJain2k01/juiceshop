@@ -41,3 +41,9 @@ output "wireguard_public_ip" {
 output "wireguard_private_ip" {
   value = aws_instance.wireguard.private_ip
 }
+output "wazuh_private_ip" {
+  value = aws_instance.wazuh.private_ip
+}
+output "wazuh_dashboard_url" {
+  value = "https://${aws_instance.wazuh.private_ip}:443  (via VPN only)"
+}

@@ -136,7 +136,9 @@ the WAF (NodePort 30443, VPN-only) is the single front door — no direct-origin
 - [x] Phase 1 — K3s + Juice Shop (App VM, cloud-init, ClusterIP)
 - [x] Phase 2 — WireGuard (gateway, EIP, on-instance keygen, NAT forwarding)
 - [x] Phase 3 — WAF (ModSecurity + CRS, NodePort, VPN-only, allow/block verified)
-- [ ] Phase 4 — Wazuh
+- [x] Phase 4a — Wazuh stack (manager + indexer + dashboard, persistent EBS volume)
+- [ ] Phase 4b — Wazuh agent on app VM + application/ingress log collection
+- [ ] Phase 4c — custom rule for the verifier marker
 - [ ] Phase 5 — Verifier
 - [ ] Phase 6 — CI/CD
 - [ ] Phase 7 — Hardening + evidence
