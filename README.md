@@ -52,4 +52,3 @@ all design decisions reviewed and explainable by the author.
 ## Incomplete items
 _Tracked here as we go._
 
-<!-- CI pipeline test -->
