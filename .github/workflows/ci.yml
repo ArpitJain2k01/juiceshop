@@ -1,0 +1,98 @@
+name: ci
+
+# Controlled triggers:
+#  - pull_request: run all checks to gate the PR (main is protected: PR + green checks required)
+#  - push to main: after a PR merges, run checks then deploy
+#  - workflow_dispatch: manual deploy button
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+      - name: fmt check
+        run: terraform -chdir=terraform fmt -check -recursive
+      - name: init (no backend)
+        run: terraform -chdir=terraform init -backend=false
+      - name: validate
+        run: terraform -chdir=terraform validate
+
+  scan:
+    name: Security scans (Trivy + Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Gitleaks scans full history
+
+      - name: Gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+      # Install Trivy from the official APT repo (deterministic; avoids flaky
+      # install scripts). The CLI natively reads .trivyignore for accepted findings.
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+          trivy --version
+
+      - name: Trivy (IaC misconfiguration scan)
+        run: trivy config --severity CRITICAL,HIGH --ignorefile .trivyignore --exit-code 1 --skip-dirs .git .
+
+      - name: Trivy (filesystem vuln scan)
+        run: trivy fs --severity CRITICAL,HIGH --ignorefile .trivyignore --exit-code 1 .
+
+  verifier:
+    name: Verifier syntax/compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install deps
+        run: pip install -r verifier/requirements.txt
+      - name: compile check
+        run: python -m py_compile verifier/verify.py
+
+  deploy:
+    name: Deploy + verify (self-hosted, on VPN)
+    needs: [validate, scan, verifier]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    environment: production # add required reviewers in repo settings for an approval gate
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ap-southeast-2
+      INDEXER_PASSWORD: ${{ secrets.INDEXER_PASSWORD }}
+      TF_VAR_evaluator_cidr: ${{ secrets.EVALUATOR_CIDR }}
+      TF_VAR_wg_client_public_key: ${{ secrets.WG_CLIENT_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+      - name: terraform apply
+        run: terraform -chdir=terraform init && terraform -chdir=terraform apply -auto-approve
+      - name: verify (readiness + log delivery gate)
+        run: make verify
