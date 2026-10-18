@@ -1,0 +1,101 @@
+#!/bin/bash
+set -euxo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y docker.io docker-compose-v2 git jq
+
+systemctl enable --now docker
+
+# --- Required by the Wazuh indexer (OpenSearch) or it will not start ---
+echo 'vm.max_map_count=262144' > /etc/sysctl.d/99-wazuh.conf
+sysctl -p /etc/sysctl.d/99-wazuh.conf
+
+# --- Mount the dedicated data volume (persists across instance replacement) ---
+# Find the extra data disk: an NVMe disk with no partitions and no mountpoint
+# (the root disk has partitions, so it is skipped). This avoids hardcoding a
+# device name, which Nitro instances remap to /dev/nvmeXn1.
+DATA_DISK=""
+for d in /dev/nvme*n1; do
+  [ -b "$d" ] || continue
+  HAS_PART="$(lsblk -no NAME "$d" | tail -n +2 || true)"
+  MOUNTED="$(lsblk -no MOUNTPOINT "$d" | tr -d '[:space:]' || true)"
+  if [ -z "$HAS_PART" ] && [ -z "$MOUNTED" ]; then
+    DATA_DISK="$d"
+    break
+  fi
+done
+
+mkdir -p /var/lib/wazuh-data
+if [ -n "$DATA_DISK" ]; then
+  # Format ONLY if the disk has no filesystem yet, so reruns preserve data.
+  if ! blkid "$DATA_DISK" >/dev/null 2>&1; then
+    mkfs.ext4 -L wazuh-data "$DATA_DISK"
+  fi
+  # Mount by label so it survives device renaming across reboots/replacements.
+  grep -q 'LABEL=wazuh-data' /etc/fstab || \
+    echo 'LABEL=wazuh-data /var/lib/wazuh-data ext4 defaults,nofail 0 2' >> /etc/fstab
+  mount -a
+fi
+
+mkdir -p /var/lib/wazuh-data/indexer /var/lib/wazuh-data/manager-logs
+
+# The Wazuh indexer container runs as UID/GID 1000 and must own its data dir,
+# otherwise it cannot write to the bind-mounted volume and crashes on startup.
+chown -R 1000:1000 /var/lib/wazuh-data/indexer
+
+# --- Deploy Wazuh single-node via the official docker compose ---
+cd /opt
+if [ ! -d wazuh-docker ]; then
+  git clone https://github.com/wazuh/wazuh-docker.git -b v4.14.1
+fi
+cd wazuh-docker/single-node
+
+# Point Wazuh persistent volumes at the mounted data disk via a compose override,
+# so stored alerts/logs live on the dedicated EBS volume (survives redeploys).
+cat > docker-compose.override.yml <<'YAML'
+services:
+  wazuh.indexer:
+    volumes:
+      - /var/lib/wazuh-data/indexer:/var/lib/wazuh-indexer
+  wazuh.manager:
+    volumes:
+      - /var/lib/wazuh-data/manager-logs:/var/ossec/logs
+YAML
+
+# Generate the self-signed certs Wazuh requires (idempotent: skip if present).
+if [ ! -d config/wazuh_indexer_ssl_certs ] || [ -z "$(ls -A config/wazuh_indexer_ssl_certs 2>/dev/null)" ]; then
+  docker compose -f generate-indexer-certs.yml run --rm generator
+fi
+
+# Bring up manager + indexer + dashboard.
+docker compose up -d
+
+# --- Custom rule so verifier markers (even on benign/allowed requests) are indexed ---
+# Anchored to rule 31100 (web-accesslog) so it inherits the web decode; matches the
+# marker in the request URL. This lets the verifier find CLEAN (200) markers too, not
+# only attack markers that already trigger CRS detection rules.
+mkdir -p /var/lib/wazuh-data/manager-rules
+cat > /var/lib/wazuh-data/manager-rules/local_rules.xml <<'XML'
+<group name="lab,verifier,">
+  <rule id="100101" level="5">
+    <if_sid>31100</if_sid>
+    <url>VERIFYMARKER</url>
+    <description>Lab verifier marker observed in web request</description>
+  </rule>
+</group>
+XML
+
+# Wait for the manager container to be running, then load the rule and reload.
+for i in $(seq 1 30); do
+  if docker ps --format '{{.Names}}' | grep -q single-node-wazuh.manager-1; then
+    break
+  fi
+  sleep 5
+done
+docker cp /var/lib/wazuh-data/manager-rules/local_rules.xml single-node-wazuh.manager-1:/var/ossec/etc/rules/local_rules.xml
+docker exec single-node-wazuh.manager-1 chown wazuh:wazuh /var/ossec/etc/rules/local_rules.xml
+docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart || true
+
+# Record readiness for later inspection (SSM/SSH).
+echo "wazuh bootstrap finished at $(date -u)" > /var/log/wazuh-bootstrap.done
