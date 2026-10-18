@@ -25,3 +25,26 @@ variable "ssh_public_key_path" {
   type        = string
   default     = "~/.ssh/juiceshop-lab.pub"
 }
+
+variable "app_instance_type" {
+  description = "The instance type for the Juice Shop application"
+  type        = string
+  default     = "t3.medium"
+}
+variable "juiceshop_image" {
+  description = "OWASP Juice Shop container image"
+  type        = string
+  default     = "bkimminich/juice-shop:v19.0.0"
+}
+
+variable "wazuh_instance_type" {
+  description = "The instance type for the Wazuh server"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "app_root_volume_size" {
+  description = "The root volume size for the Juice Shop application instance"
+  type        = number
+  default     = 20
+}

@@ -32,3 +32,6 @@ output "app_instance_profile" {
 output "wazuh_instance_profile" {
   value = aws_iam_instance_profile.wazuh.name
 }
+output "app_private_ip" {
+  value = aws_instance.app.private_ip
+}

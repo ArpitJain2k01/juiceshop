@@ -65,10 +65,33 @@ after testing. Running estimate: see [cost.md](cost.md).
 Self-signed CA generated at deploy time (no public domain in a private lab). See
 [tls.md](tls.md). Details filled in as the WAF and Wazuh phases land.
 
+## Compute: App VM (K3s + Juice Shop)
+
+The application tier is a single Ubuntu 24.04 EC2 instance in the **private subnet**.
+
+| Aspect | Choice | Why |
+|---|---|---|
+| Kubernetes | **K3s** (single-node) | Lightweight, single-binary K8s; fits a 2-VM budget without a managed control plane |
+| App deploy | Juice Shop as a **ClusterIP** Service | Not NodePort/LoadBalancer → unreachable from outside the node; only the in-cluster WAF reaches it |
+| Image | pinned `bkimminich/juice-shop:v19.0.0` | Reproducible; never `:latest` |
+| Provisioning | cloud-init (`user_data`) installs K3s + applies manifests on boot | "One command, no manual server setup" |
+| Root disk | gp3, **encrypted** | Data-at-rest encryption |
+| Metadata | **IMDSv2 required** (`http_tokens = "required"`) | Juice Shop is deliberately SSRF-vulnerable; IMDSv2 blocks metadata-credential theft |
+| Pod security | non-root, drop ALL caps, no privilege escalation | Pod hardening by default even on an intentionally vulnerable app |
+
+> Note: Juice Shop may not start cleanly as non-root. If the pod crash-loops on first
+> apply, `runAsNonRoot` is relaxed and the reason documented — the ClusterIP exposure
+> control is unaffected.
+
+### Why ClusterIP matters (bypass prevention)
+Port 3000 is published only inside the cluster. No Kubernetes Service exposes it to the
+node's network, no security group opens it, and the VM has no public IP. The only route
+to Juice Shop is: VPN → WG gateway → WAF (Phase 3) → ClusterIP. There is no second path.
+
 ## Status
 - [x] Phase 0 — network (VPC, subnets, IGW, NAT, routes, flow logs)
-- [ ] Phase 0 — security groups, IAM instance roles, outputs
-- [ ] Phase 1 — K3s + Juice Shop
+- [x] Phase 0 — security groups, IAM instance roles, keypair, outputs
+- [x] Phase 1 — K3s + Juice Shop (App VM, cloud-init, ClusterIP)
 - [ ] Phase 2 — WireGuard
 - [ ] Phase 3 — WAF
 - [ ] Phase 4 — Wazuh

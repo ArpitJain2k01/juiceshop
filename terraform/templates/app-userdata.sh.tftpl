@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euxo pipefail
+
+# --- Install K3s (single-node, lightweight Kubernetes) ---
+curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+
+# Wait for the API server to be ready
+until k3s kubectl get nodes 2>/dev/null | grep -q ' Ready'; do
+    sleep 5
+done
+
+# --- Deploy Juice Shop as a ClusterIP service (never exposed directly) ---
+cat <<'EOF' | k3s kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juice-shop
+  labels:
+    app: juice-shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: juice-shop
+  template:
+    metadata:
+      labels:
+        app: juice-shop
+    spec:
+      containers:
+        - name: juice-shop
+          image: ${juiceshop_image}
+          ports:
+            - containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop:
+                - ALL
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 40
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juice-shop
+spec:
+  type: ClusterIP
+  selector:
+    app: juice-shop
+  ports:
+    - port: 3000
+      targetPort: 3000
+EOF
