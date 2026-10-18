@@ -29,7 +29,7 @@ variable "ssh_public_key_path" {
 variable "app_instance_type" {
   description = "The instance type for the Juice Shop application"
   type        = string
-  default     = "t3.medium"
+  default     = "c7i-flex.large"
 }
 variable "juiceshop_image" {
   description = "OWASP Juice Shop container image"
@@ -40,7 +40,7 @@ variable "juiceshop_image" {
 variable "wazuh_instance_type" {
   description = "The instance type for the Wazuh server"
   type        = string
-  default     = "t3.micro"
+  default     = "m7i-flex.large"
 }
 
 variable "app_root_volume_size" {
