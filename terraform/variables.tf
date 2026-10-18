@@ -19,3 +19,9 @@ variable "evaluator_cidr" {
   description = "The CIDR block for the evaluator"
   type        = string
 }
+
+variable "ssh_public_key_path" {
+  description = "Path to the SSH public key used for EC2 access over the VPN"
+  type        = string
+  default     = "~/.ssh/juiceshop-lab.pub"
+}

@@ -23,3 +23,12 @@ output "security_group_juiceshop_id" {
 output "security_group_wazuh_id" {
   value = aws_security_group.sg-wazuh.id
 }
+output "ssh_keypair_name" {
+  value = aws_key_pair.lab.key_name
+}
+output "app_instance_profile" {
+  value = aws_iam_instance_profile.app.name
+}
+output "wazuh_instance_profile" {
+  value = aws_iam_instance_profile.wazuh.name
+}
