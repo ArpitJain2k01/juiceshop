@@ -43,25 +43,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
+      # Install Trivy directly (robust: avoids the action's flaky bundled installer)
+      # and run the CLI, which natively reads .trivyignore for accepted findings.
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.65.0
+          trivy --version
+
       - name: Trivy (IaC misconfiguration scan)
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: config
-          scan-ref: .
-          exit-code: "1"
-          severity: CRITICAL,HIGH
-          trivyignores: .trivyignore
-          # Juice Shop is intentionally vulnerable; we only scan OUR IaC/config here.
-          skip-dirs: ".git"
+        run: trivy config --severity CRITICAL,HIGH --ignorefile .trivyignore --exit-code 1 --skip-dirs .git .
 
       - name: Trivy (filesystem vuln scan)
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          scan-type: fs
-          scan-ref: .
-          exit-code: "1"
-          severity: CRITICAL,HIGH
-          trivyignores: .trivyignore
+        run: trivy fs --severity CRITICAL,HIGH --ignorefile .trivyignore --exit-code 1 .
 
   verifier:
     name: Verifier syntax/compile
