@@ -107,12 +107,35 @@ The only public entry point. A `t3.micro` in the **public subnet** with an expli
    `Endpoint = <wireguard_public_ip>:51820`, `AllowedIPs = 10.20.0.0/16, 10.8.0.0/24`.
 3. `wg-quick up ./juiceshop.conf` → laptop can now reach the private App/Wazuh VMs.
 
+## WAF: ModSecurity + OWASP CRS
+
+An in-cluster reverse proxy (`owasp/modsecurity-crs:4.25.2-nginx-alpine-lts`) sits in
+front of Juice Shop. See docs/learning/waf.md.
+
+| Aspect | Choice | Why |
+|---|---|---|
+| Engine + rules | ModSecurity + OWASP CRS (bundled nginx image) | Open-source, deterministic, fully in IaC, no public domain |
+| Placement | Deployment in K3s, `NodePort 30443` | WAF is the entry; Juice Shop stays ClusterIP behind it |
+| Backend | `BACKEND=http://juice-shop:3000` | WAF proxies to Juice Shop's internal Service |
+| Mode | `MODSEC_RULE_ENGINE=On`, `PARANOIA=1`, `ANOMALY_INBOUND=5` | Blocking, deterministic |
+| Reachability | SG allows 30443 only from the WireGuard SG | VPN users only; still no public exposure |
+| TLS | HTTP for now; self-signed TLS added in hardening pass | Prove allow/block first (documented) |
+
+### Verified allow/block (live)
+```
+GET /                      → 200  (clean, proxied to Juice Shop)
+GET /?id=1' OR '1'='1      → 403  (SQLi blocked by CRS)
+GET /?file=../../etc/passwd → 403  (path traversal blocked by CRS)
+```
+Juice Shop never receives the blocked requests. Its own port 3000 remains ClusterIP, so
+the WAF (NodePort 30443, VPN-only) is the single front door — no direct-origin bypass.
+
 ## Status
 - [x] Phase 0 — network (VPC, subnets, IGW, NAT, routes, flow logs)
 - [x] Phase 0 — security groups, IAM instance roles, keypair, outputs
 - [x] Phase 1 — K3s + Juice Shop (App VM, cloud-init, ClusterIP)
 - [x] Phase 2 — WireGuard (gateway, EIP, on-instance keygen, NAT forwarding)
-- [ ] Phase 3 — WAF
+- [x] Phase 3 — WAF (ModSecurity + CRS, NodePort, VPN-only, allow/block verified)
 - [ ] Phase 4 — Wazuh
 - [ ] Phase 5 — Verifier
 - [ ] Phase 6 — CI/CD

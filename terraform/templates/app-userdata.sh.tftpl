@@ -64,3 +64,60 @@ spec:
     - port: 3000
       targetPort: 3000
 EOF
+
+# --- Deploy ModSecurity + OWASP CRS WAF in front of Juice Shop ---
+# The WAF is the only front door: it proxies clean requests to the Juice Shop
+# ClusterIP and returns 403 on attacks. Juice Shop itself stays internal.
+cat <<'EOF' | k3s kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waf
+  labels:
+    app: waf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: waf
+  template:
+    metadata:
+      labels:
+        app: waf
+    spec:
+      containers:
+        - name: waf
+          image: owasp/modsecurity-crs:4.25.2-nginx-alpine-lts
+          env:
+            - name: BACKEND
+              value: "http://juice-shop:3000"
+            - name: MODSEC_RULE_ENGINE
+              value: "On"
+            - name: PARANOIA
+              value: "1"
+            - name: ANOMALY_INBOUND
+              value: "5"
+            - name: PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waf
+spec:
+  type: NodePort
+  selector:
+    app: waf
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30443
+EOF

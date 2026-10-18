@@ -46,6 +46,15 @@ resource "aws_vpc_security_group_ingress_rule" "sg-juiceshop-ingress-ssh" {
   security_group_id            = aws_security_group.sg-juiceshop.id
 }
 
+resource "aws_vpc_security_group_ingress_rule" "sg-juiceshop-waf-nodeport" {
+  description                  = "WAF NodePort (30443) reachable only from VPN users via the WireGuard SG"
+  from_port                    = 30443
+  to_port                      = 30443
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.sg-wireguard.id
+  security_group_id            = aws_security_group.sg-juiceshop.id
+}
+
 resource "aws_vpc_security_group_egress_rule" "sg-juiceshop-egress" {
   description       = "Allow all egress for image pulls, OS updates, and forwarding logs to Wazuh"
   ip_protocol       = "-1"
