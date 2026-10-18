@@ -88,11 +88,30 @@ Port 3000 is published only inside the cluster. No Kubernetes Service exposes it
 node's network, no security group opens it, and the VM has no public IP. The only route
 to Juice Shop is: VPN → WG gateway → WAF (Phase 3) → ClusterIP. There is no second path.
 
+## VPN: WireGuard gateway
+
+The only public entry point. A `t3.micro` in the **public subnet** with an explicit EIP.
+
+| Aspect | Choice | Why |
+|---|---|---|
+| VPN | **WireGuard** | Small, kernel-level, key-pair auth; see docs/learning/wireguard.md |
+| Keys | **server keypair generated on the instance** (cloud-init) | Server private key never enters Terraform state or git |
+| Client key | supplied as `wg_client_public_key` (public only) | Private half stays on the operator's laptop |
+| Pubkey retrieval | server public key copied to `/home/ubuntu/wg-server-public.key`, read over SSH | No extra IAM; no secret in state |
+| Routing | `source_dest_check = false` + IP forwarding + iptables MASQUERADE | Gateway forwards tunnel traffic into the private subnet |
+| Public IP | explicit `aws_eip` | Single, known, deliberate entry point |
+
+### Connect flow (operator)
+1. `ssh ubuntu@<wireguard_public_ip>` and `cat wg-server-public.key`.
+2. Build local `~/.wg/juiceshop.conf` with the client private key, server public key,
+   `Endpoint = <wireguard_public_ip>:51820`, `AllowedIPs = 10.20.0.0/16, 10.8.0.0/24`.
+3. `wg-quick up ./juiceshop.conf` → laptop can now reach the private App/Wazuh VMs.
+
 ## Status
 - [x] Phase 0 — network (VPC, subnets, IGW, NAT, routes, flow logs)
 - [x] Phase 0 — security groups, IAM instance roles, keypair, outputs
 - [x] Phase 1 — K3s + Juice Shop (App VM, cloud-init, ClusterIP)
-- [ ] Phase 2 — WireGuard
+- [x] Phase 2 — WireGuard (gateway, EIP, on-instance keygen, NAT forwarding)
 - [ ] Phase 3 — WAF
 - [ ] Phase 4 — Wazuh
 - [ ] Phase 5 — Verifier

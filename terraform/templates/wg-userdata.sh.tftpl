@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euxo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y wireguard
+
+# --- Generate SERVER keypair on the instance (private key never leaves) ---
+umask 077
+mkdir -p /etc/wireguard/keys
+
+wg genkey \
+    | tee /etc/wireguard/keys/server.key \
+    | wg pubkey > /etc/wireguard/keys/server.pub
+
+SERVER_PRIV=$(cat /etc/wireguard/keys/server.key)
+
+# Detect the primary (WAN) interface for NAT masquerade
+WAN_IF=$(ip route | awk '/default/ {print $5; exit}')
+
+# --- Enable IPv4 forwarding so tunnel traffic reaches the private subnet ---
+echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-wireguard.conf
+sysctl -p /etc/sysctl.d/99-wireguard.conf
+
+# --- WireGuard server config ---
+cat > /etc/wireguard/wg0.conf <<EOF
+[Interface]
+Address = ${server_vpn_ip}/24
+ListenPort = ${wg_server_port}
+PrivateKey = $SERVER_PRIV
+PostUp   = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o $WAN_IF -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $WAN_IF -j MASQUERADE
+
+[Peer]
+PublicKey = ${wg_client_public_key}
+AllowedIPs = ${client_vpn_ip}/32
+EOF
+
+systemctl enable --now wg-quick@wg0
+
+# Leave the server PUBLIC key readable over SSH (public key only, safe)
+cp /etc/wireguard/keys/server.pub /home/ubuntu/wg-server-public.key
+chown ubuntu:ubuntu /home/ubuntu/wg-server-public.key

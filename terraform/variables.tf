@@ -48,3 +48,32 @@ variable "app_root_volume_size" {
   type        = number
   default     = 20
 }
+
+variable "wg_instance_type" {
+  description = "Instance type for the WireGuard gateway"
+  type        = string
+  default     = "t3.micro" # VPN gateway is tiny
+}
+
+variable "wg_client_public_key" {
+  description = "The WireGuard CLIENT public key (from ~/.wg/juiceshop-client.pub). Public key only."
+  type        = string
+  # no default — must be supplied in terraform.tfvars
+}
+
+variable "wg_server_port" {
+  description = "WireGuard listen port (UDP)"
+  type        = number
+  default     = 51820
+}
+
+variable "wg_vpn_cidr" {
+  description = "VPN tunnel subnet (internal to WireGuard)"
+  type        = string
+  default     = "10.8.0.0/24"
+}
+variable "wg_root_volume_size" {
+  description = "The root volume size for the WireGuard gateway instance"
+  type        = number
+  default     = 10
+}

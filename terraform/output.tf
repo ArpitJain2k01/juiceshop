@@ -35,3 +35,9 @@ output "wazuh_instance_profile" {
 output "app_private_ip" {
   value = aws_instance.app.private_ip
 }
+output "wireguard_public_ip" {
+  value = aws_eip.wireguard.public_ip
+}
+output "wireguard_private_ip" {
+  value = aws_instance.wireguard.private_ip
+}
