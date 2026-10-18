@@ -1,0 +1,53 @@
+# ---- Terraform ----
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# ---- Variables (never commit real values) ----
+*.tfvars
+*.tfvars.json
+!example.tfvars
+*.auto.tfvars
+
+# ---- Secrets / keys ----
+*.pem
+*.key
+*_rsa
+*_ed25519
+*.ovpn
+wg_*.conf
+wg-*.conf
+secrets/
+.env
+.env.*
+
+# ---- Verifier / runtime output ----
+*.marker
+verify-*.log
+*.local
+
+# ---- OS / editor ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Terraform saved plan files
+tfplan
+*.tfplan
+verifier/.venv/
+verifier/.env
+!verifier/.env.example
+__pycache__/
+*.pyc
+
+# Local-only interview prep (not shared)
+docs/interview/
