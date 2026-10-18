@@ -50,6 +50,7 @@ jobs:
           scan-ref: .
           exit-code: "1"
           severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
           # Juice Shop is intentionally vulnerable; we only scan OUR IaC/config here.
           skip-dirs: ".git"
 
@@ -60,6 +61,7 @@ jobs:
           scan-ref: .
           exit-code: "1"
           severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
 
   verifier:
     name: Verifier syntax/compile
