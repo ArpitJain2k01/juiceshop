@@ -110,6 +110,14 @@ resource "aws_vpc_security_group_ingress_rule" "sg-wazuh-app-verifier" {
   referenced_security_group_id = aws_security_group.sg-juiceshop.id
   security_group_id            = aws_security_group.sg-wazuh.id
 }
+resource "aws_vpc_security_group_ingress_rule" "sg-wazuh-indexer-vpn" {
+  description                  = "Wazuh indexer API (9200) from VPN users (verifier) via the WireGuard SG"
+  from_port                    = 9200
+  to_port                      = 9200
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.sg-wireguard.id
+  security_group_id            = aws_security_group.sg-wazuh.id
+}
 
 resource "aws_vpc_security_group_egress_rule" "sg-wazuh-egress" {
   description       = "Allow all egress for updates and certificate/package downloads"

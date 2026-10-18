@@ -43,3 +43,7 @@ verify-*.log
 # Terraform saved plan files
 tfplan
 *.tfplan
+verifier/.venv/
+verifier/.env
+__pycache__/
+*.pyc
