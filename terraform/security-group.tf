@@ -6,11 +6,13 @@ resource "aws_security_group" "sg-wireguard" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "sg-wireguard-ingress" {
-  description       = "WireGuard VPN handshake (UDP 51820) from the evaluator IP only - the single public entry point"
+  for_each = toset(local.vpn_allowed_cidrs)
+
+  description       = "WireGuard VPN handshake (UDP 51820) from allowlisted IP ${each.value}"
   from_port         = 51820
   to_port           = 51820
   ip_protocol       = "udp"
-  cidr_ipv4         = var.evaluator_cidr
+  cidr_ipv4         = each.value
   security_group_id = aws_security_group.sg-wireguard.id
 }
 

@@ -15,11 +15,6 @@ variable "vpc_cidr" {
   default     = "10.20.0.0/16"
 }
 
-variable "evaluator_cidr" {
-  description = "The CIDR block for the evaluator"
-  type        = string
-}
-
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key used for EC2 access over the VPN"
   type        = string
@@ -87,4 +82,16 @@ variable "wazuh_root_volume_size" {
   description = "Root volume size for the Wazuh VM"
   type        = number
   default     = 30
+}
+
+variable "evaluator_cidr" {
+  description = "Explicit CIDR to allowlist for the VPN. Empty = auto-detect the deployer's public IP as a /32."
+  type        = string
+  default     = ""
+}
+
+variable "extra_allowed_cidrs" {
+  description = "Additional CIDRs allowed to reach the VPN (e.g. allowlist a separate evaluator)."
+  type        = list(string)
+  default     = []
 }
