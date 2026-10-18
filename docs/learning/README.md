@@ -9,7 +9,7 @@ lab is explainable in an interview.
 | WireGuard | `wireguard.md` | ✅ done |
 | ModSecurity + OWASP CRS | `waf.md` | ✅ done |
 | Wazuh | `wazuh.md` | ✅ done |
-| Verifier / Indexer API | `verifier.md` | pending |
+| Verifier / Indexer API | `verifier.md` | ✅ done |
 
 Each note answers: what it is, why we chose it over alternatives, how it fits the
 architecture, and the likely cross-questions.
