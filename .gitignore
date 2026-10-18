@@ -45,5 +45,6 @@ tfplan
 *.tfplan
 verifier/.venv/
 verifier/.env
+!verifier/.env.example
 __pycache__/
 *.pyc
