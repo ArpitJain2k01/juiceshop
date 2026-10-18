@@ -1,0 +1,10 @@
+# Trivy ignore file — accepted risks, each with written justification.
+# We do NOT disable the scanner; we triage. Everything not listed here stays enforced.
+
+# AWS-0104: unrestricted egress (0.0.0.0/0) on lab security groups.
+# Accepted risk: private VMs need outbound internet via the NAT gateway to pull
+# container images, K3s, Wazuh packages and OS updates. There is NO inbound path
+# from the internet (private subnet, no public IPs; SG ingress is VPN/SG-scoped
+# only). Egress-only exposure is low risk here while inbound is fully restricted.
+# In production we would restrict egress to known registries/endpoints.
+AWS-0104
