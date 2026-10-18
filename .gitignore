@@ -39,3 +39,7 @@ verify-*.log
 .idea/
 .vscode/
 *.swp
+
+# Terraform saved plan files
+tfplan
+*.tfplan
