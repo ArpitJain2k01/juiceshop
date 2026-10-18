@@ -1,0 +1,8 @@
+$ curl ... http://<app>:30443/            (clean request)
+HTTP 200
+
+$ curl ... "http://<app>:30443/?id=1%27+OR+%271%27=%271"   (SQL injection)
+HTTP 403
+
+$ curl ... "http://<app>:30443/?file=../../../../etc/passwd"   (path traversal)
+HTTP 403

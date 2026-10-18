@@ -1,0 +1,11 @@
+{
+  "total_hits": 23,
+  "sample_alert": {
+    "timestamp": "2026-10-18T18:10:20.222+0000",
+    "agent_name": "ip-10-20-1-253",
+    "rule_id": "31164",
+    "rule_description": "SQL injection attempt.",
+    "rule_level": 6,
+    "matched_log": "2026-10-18T18:10:19.985382511Z stdout F <redacted> - - [18/Oct/2026:18:10:19 +0000] \"GET /?marker=VERIFYMARKER-shot-1792347019&id=1%27+OR+%271%27=%271 HTTP/1.1\" 403 146 \"-\" \"curl/8.7.1\" \"-\""
+  }
+}
