@@ -121,3 +121,42 @@ spec:
       targetPort: 8080
       nodePort: 30443
 EOF
+
+# --- Install and enroll the Wazuh agent (ships app/WAF logs to the manager) ---
+export DEBIAN_FRONTEND=noninteractive
+WAZUH_MANAGER="${wazuh_manager_ip}"
+
+curl -sO https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.14.1-1_amd64.deb
+WAZUH_MANAGER="$WAZUH_MANAGER" dpkg -i ./wazuh-agent_4.14.1-1_amd64.deb || apt-get -f install -y
+
+# Ensure the manager address is set (idempotent on reruns)
+sed -i "s|<address>.*</address>|<address>$WAZUH_MANAGER</address>|" /var/ossec/etc/ossec.conf
+
+# --- Collect WAF/ModSecurity + Juice Shop container logs ---
+# K3s writes container stdout/stderr under /var/log/containers/*.log
+cat >> /var/ossec/etc/ossec.conf <<'OSSEC'
+<ossec_config>
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/containers/waf-*.log</location>
+  </localfile>
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/containers/juice-shop-*.log</location>
+  </localfile>
+</ossec_config>
+OSSEC
+
+systemctl daemon-reload
+systemctl enable wazuh-agent
+
+# Retry start until the manager is reachable for enrollment
+for i in $(seq 1 30); do
+  if systemctl restart wazuh-agent; then
+    sleep 5
+    if grep -q "Connected to the server" /var/ossec/logs/ossec.log 2>/dev/null; then
+      break
+    fi
+  fi
+  sleep 10
+done

@@ -22,7 +22,8 @@ resource "aws_instance" "app" {
   iam_instance_profile   = aws_iam_instance_profile.app.name
 
   user_data = templatefile("${path.module}/templates/app-userdata.sh.tftpl", {
-    juiceshop_image = var.juiceshop_image
+    juiceshop_image  = var.juiceshop_image
+    wazuh_manager_ip = aws_instance.wazuh.private_ip
   })
 
   root_block_device {
